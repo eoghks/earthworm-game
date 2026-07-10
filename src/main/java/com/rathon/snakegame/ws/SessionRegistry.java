@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
 /**
  * WebSocket 세션과 플레이어 id 매핑 관리.
@@ -16,13 +17,20 @@ import org.springframework.web.socket.WebSocketSession;
 @Component
 public class SessionRegistry {
 
+    /** 세션당 전송 제한 시간(ms) — 초과 시 해당 세션만 전송 한도 초과로 격리된다 */
+    private static final int SEND_TIME_LIMIT_MS = 1000;
+
+    /** 세션당 전송 버퍼 상한(byte) */
+    private static final int SEND_BUFFER_SIZE_LIMIT = 512 * 1024;
+
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, String> sessionToPlayer = new ConcurrentHashMap<>();
     private final Map<String, String> playerToSession = new ConcurrentHashMap<>();
 
-    /** 연결 수립 시 세션 등록 */
+    /** 연결 수립 시 세션 등록 — 게임 루프 브로드캐스트가 저속 클라이언트에 블로킹되지 않도록 감싼다 */
     public void register(WebSocketSession session) {
-        sessions.put(session.getId(), session);
+        sessions.put(session.getId(),
+                new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS, SEND_BUFFER_SIZE_LIMIT));
     }
 
     /** 연결 종료 시 세션·플레이어 매핑 제거 */

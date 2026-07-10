@@ -9,8 +9,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.SessionLimitExceededException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -147,12 +149,26 @@ public class GameLoopService {
         sendRaw(session, new TextMessage(toJson(message)));
     }
 
-    /** 전송 오류는 로깅만 — 끊긴 세션은 종료 이벤트에서 정리된다 */
+    /** 전송 오류는 세션 단위로 격리 — 남은 세션의 브로드캐스트가 중단되지 않게 한다 (신뢰 경계 방어) */
     private void sendRaw(WebSocketSession session, TextMessage message) {
         try {
             session.sendMessage(message);
-        } catch (IOException e) {
+        } catch (SessionLimitExceededException e) {
+            // 전송 시간·버퍼 한도 초과 — 해당 세션만 끊어 게임 루프를 보호한다
+            log.warn("전송 한도 초과로 세션 종료: session={}", session.getId());
+            closeQuietly(session);
+        } catch (IOException | IllegalStateException e) {
+            // 닫힌 세션 race 등 — 종료 이벤트에서 정리된다
             log.warn("메시지 전송 실패: session={}", session.getId());
+        }
+    }
+
+    /** 세션 강제 종료 — 종료 실패는 로깅만 (연결 종료 이벤트로 플레이어가 정리된다) */
+    private void closeQuietly(WebSocketSession session) {
+        try {
+            session.close(CloseStatus.SESSION_NOT_RELIABLE);
+        } catch (IOException e) {
+            log.debug("세션 종료 중 오류: session={}", session.getId());
         }
     }
 
