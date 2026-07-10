@@ -41,8 +41,11 @@ public class Snake {
         }
     }
 
-    /** 플레이어 입력 반영 */
+    /** 플레이어 입력 반영 — 비유한(NaN/Infinity) 각도는 좌표를 오염시키므로 폐기한다 (심층 방어) */
     public void applyInput(double angle, boolean boosting) {
+        if (!Double.isFinite(angle)) {
+            return;
+        }
         this.targetAngle = angle;
         this.boostRequested = boosting;
     }

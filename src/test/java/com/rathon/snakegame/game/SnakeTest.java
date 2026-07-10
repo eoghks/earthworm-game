@@ -94,6 +94,23 @@ class SnakeTest {
         assertThat(snake.score()).isEqualTo(GameConfig.INITIAL_LENGTH);
     }
 
+    @Test
+    @DisplayName("입력 방어: 비유한(NaN/Infinity) 각도는 방향에 반영되지 않고 좌표도 오염되지 않는다")
+    void applyInput_ignoresNonFiniteAngle() {
+        Snake snake = new Snake("p1", "테스터", new Vec2(0, 0), 0);
+
+        snake.applyInput(Double.NaN, true);
+        snake.applyInput(Double.POSITIVE_INFINITY, true);
+        snake.applyInput(Double.NEGATIVE_INFINITY, true);
+        snake.move();
+
+        assertThat(snake.getTargetAngle()).isZero();
+        assertThat(snake.getDirection()).isZero();
+        // 좌표 오염(NaN) 없이 기존 방향으로 정상 전진한다
+        assertThat(snake.head().x()).isCloseTo(GameConfig.BASE_SPEED, within(1e-9));
+        assertThat(snake.head().y()).isCloseTo(0.0, within(1e-9));
+    }
+
     /** 성장 예약 후 틱을 돌려 실제 길이를 늘린다 */
     private static void growBy(Snake snake, int amount) {
         snake.grow(amount);
