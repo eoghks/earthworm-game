@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>지렁이 게임</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 게임 캔버스 — 창 크기에 맞춰 동적 리사이즈 -->
+  <canvas id="game"></canvas>
+
+  <!-- HUD: 좌상단 내 점수 / 우상단 리더보드 -->
+  <div id="hud" class="hidden">
+    <div id="score-panel">점수: <span id="my-score">0</span></div>
+    <div id="leaderboard-panel">
+      <div class="lb-title">리더보드</div>
+      <ol id="leaderboard-list"></ol>
+    </div>
+  </div>
+
+  <!-- 입장 오버레이 -->
+  <div id="join-overlay" class="overlay">
+    <div class="dialog">
+      <h1>지렁이 게임</h1>
+      <input id="nickname" type="text" maxlength="16" placeholder="닉네임 입력" autocomplete="off">
+      <button id="join-btn">입장</button>
+      <p class="help">마우스로 방향 조작 · 클릭 또는 스페이스로 부스트</p>
+    </div>
+  </div>
+
+  <!-- 사망 오버레이 -->
+  <div id="dead-overlay" class="overlay hidden">
+    <div class="dialog">
+      <h1>사망!</h1>
+      <p>최종 점수: <span id="final-score">0</span></p>
+      <button id="respawn-btn">다시 입장</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
