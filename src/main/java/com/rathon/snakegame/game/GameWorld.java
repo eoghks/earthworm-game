@@ -20,9 +20,11 @@ public class GameWorld {
     private final Map<String, Snake> snakes = new LinkedHashMap<>();
     private final Map<Long, Food> foods = new LinkedHashMap<>();
     private final Random random;
-    /** 맵에 유지할 먹이 목표량 — 테스트에서는 0으로 두고 결정적으로 검증한다 */
+    /** 기본 반지름 기준 먹이 목표량 — 테스트에서는 0으로 두고 결정적으로 검증한다 */
     private final int foodTarget;
     private long foodIdSequence;
+    /** 현재 맵 반지름 — 접속 인원에 따라 매 틱 목표치로 보간된다 */
+    private double mapRadius = GameConfig.BASE_RADIUS;
 
     /** 이번 틱에 추가된 먹이 — 증분 브로드캐스트용 */
     @Getter
@@ -43,10 +45,10 @@ public class GameWorld {
         addedFoods.clear();
     }
 
-    /** 랜덤 위치에 지렁이 입장 */
+    /** 랜덤 위치에 지렁이 입장 — 현재 맵 반지름 안쪽으로 스폰한다 */
     public Snake spawnSnake(String id, String nickname) {
         double angle = random.nextDouble() * 2 * Math.PI;
-        double radius = random.nextDouble() * (GameConfig.MAP_RADIUS - GameConfig.SPAWN_MARGIN);
+        double radius = random.nextDouble() * (mapRadius - GameConfig.SPAWN_MARGIN);
         Vec2 position = Vec2.fromAngle(angle).scale(radius);
         double heading = random.nextDouble() * 2 * Math.PI;
         return spawnSnakeAt(id, nickname, position, heading);
@@ -64,6 +66,13 @@ public class GameWorld {
         snakes.remove(id);
     }
 
+    /** 생존 중 재입장 등 강제 사망 처리 — 몸을 먹이로 배출하며 제거한다 */
+    public void killSnake(String id) {
+        Optional.ofNullable(snakes.get(id))
+                .ifPresent(snake -> convertToFoodAndRemove(
+                        new DeathEvent(id, snake.getNickname(), snake.score())));
+    }
+
     /** 플레이어 입력 반영 */
     public void applyInput(String id, double angle, boolean boosting) {
         Optional.ofNullable(snakes.get(id))
@@ -71,12 +80,13 @@ public class GameWorld {
     }
 
     /**
-     * 한 틱 진행: 이동 → 부스트 소모 → 먹이 섭취 → 충돌/경계 사망 → 먹이 리스폰.
+     * 한 틱 진행: 맵 크기 조정 → 이동 → 부스트 소모 → 먹이 섭취 → 충돌/경계 사망 → 먹이 리스폰.
      * 사망 이벤트 목록을 반환한다.
      */
     public List<DeathEvent> tick() {
         addedFoods.clear();
         removedFoodIds.clear();
+        adjustMapRadius();
         for (Snake snake : snakes.values()) {
             snake.move();
             snake.drainBoost().ifPresent(this::spawnFoodAt);
@@ -86,6 +96,35 @@ public class GameWorld {
         deaths.forEach(this::convertToFoodAndRemove);
         replenishFood();
         return deaths;
+    }
+
+    /** 접속 인원 기반 목표 반지름 — 기준 인원까지는 기본 크기, 초과 시 √비례 확장 */
+    public double targetRadius() {
+        double scale = Math.sqrt((double) snakes.size() / GameConfig.BASE_PLAYER_COUNT);
+        return GameConfig.BASE_RADIUS * Math.max(1.0, scale);
+    }
+
+    /** 현재 반지름을 목표치로 보간 — 확장은 빠르게, 수축은 느리게 */
+    private void adjustMapRadius() {
+        double target = targetRadius();
+        if (mapRadius < target) {
+            mapRadius = Math.min(target, mapRadius + GameConfig.MAP_EXPAND_PER_TICK);
+        } else if (mapRadius > target) {
+            mapRadius = Math.max(target, mapRadius - GameConfig.MAP_SHRINK_PER_TICK);
+            removeOutOfBoundsFood();
+        }
+    }
+
+    /** 수축된 경계 밖 먹이 제거 — 증분 브로드캐스트에 기록한다 */
+    private void removeOutOfBoundsFood() {
+        List<Long> outside = foods.values().stream()
+                .filter(food -> food.position().length() > mapRadius)
+                .map(Food::id)
+                .toList();
+        outside.forEach(id -> {
+            foods.remove(id);
+            removedFoodIds.add(id);
+        });
     }
 
     /** 머리 근처 먹이 섭취 판정 — 먹으면 성장 예약 */
@@ -108,7 +147,7 @@ public class GameWorld {
     private List<DeathEvent> detectDeaths() {
         List<DeathEvent> deaths = new ArrayList<>();
         for (Snake snake : snakes.values()) {
-            boolean outOfBounds = snake.head().length() >= GameConfig.MAP_RADIUS;
+            boolean outOfBounds = snake.head().length() >= mapRadius;
             if (outOfBounds || hitsOtherBody(snake)) {
                 deaths.add(new DeathEvent(snake.getId(), snake.getNickname(), snake.score()));
             }
@@ -136,13 +175,20 @@ public class GameWorld {
                 });
     }
 
-    /** 맵 전체 먹이 수를 목표량까지 채운다 */
+    /** 맵 전체 먹이 수를 면적 비례 목표량까지 채운다 */
     private void replenishFood() {
-        while (foods.size() < foodTarget) {
+        int target = currentFoodTarget();
+        while (foods.size() < target) {
             double angle = random.nextDouble() * 2 * Math.PI;
-            double radius = random.nextDouble() * (GameConfig.MAP_RADIUS - 50);
+            double radius = random.nextDouble() * (mapRadius - GameConfig.FOOD_SPAWN_MARGIN);
             spawnFoodAt(Vec2.fromAngle(angle).scale(radius));
         }
+    }
+
+    /** 현재 맵 면적에 비례한 먹이 목표량 */
+    private int currentFoodTarget() {
+        double ratio = mapRadius / GameConfig.BASE_RADIUS;
+        return (int) Math.round(foodTarget * ratio * ratio);
     }
 
     /** 지정 위치에 먹이 생성 — 테스트에서도 사용 */
@@ -158,8 +204,13 @@ public class GameWorld {
         return snakes.values().stream()
                 .sorted(Comparator.comparingInt(Snake::score).reversed())
                 .limit(GameConfig.LEADERBOARD_SIZE)
-                .map(snake -> new LeaderboardEntry(snake.getNickname(), snake.score()))
+                .map(snake -> new LeaderboardEntry(snake.getId(), snake.getNickname(), snake.score()))
                 .toList();
+    }
+
+    /** 현재 맵 반지름 */
+    public double mapRadius() {
+        return mapRadius;
     }
 
     public Collection<Snake> snakes() {

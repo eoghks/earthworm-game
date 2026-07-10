@@ -23,8 +23,8 @@ const leaderboardList = document.getElementById('leaderboard-list');
 // ===== 클라이언트 상태 =====
 let ws = null;
 let myPlayerId = null;
-let myNickname = '';
-let mapRadius = 2000;
+let mapRadius = 2000;        // 렌더용 현재 반지름 — 서버 값으로 부드럽게 수렴
+let targetMapRadius = 2000;  // 서버가 알려준 최신 맵 반지름
 const foods = new Map();         // id → {x, y}
 let prevSnakes = new Map();      // 직전 틱 스냅샷 — 보간용
 let currSnakes = new Map();      // 최신 틱 스냅샷
@@ -71,7 +71,9 @@ function handleMessage(msg) {
 
 function onJoined(msg) {
   myPlayerId = msg.playerId;
+  // 입장 시점 맵 크기는 초기값 — 이후 state의 mapRadius가 우선한다
   mapRadius = msg.mapRadius;
+  targetMapRadius = msg.mapRadius;
   foods.clear();
   msg.foods.forEach((f) => foods.set(f.id, f));
   joinOverlay.classList.add('hidden');
@@ -80,6 +82,8 @@ function onJoined(msg) {
 }
 
 function onState(msg) {
+  // 동적 맵 크기 — 렌더 루프에서 현재 값을 이 목표로 보간한다
+  targetMapRadius = msg.mapRadius;
   // 먹이는 증분(added/removed)으로 갱신
   msg.foodsAdded.forEach((f) => foods.set(f.id, f));
   msg.foodsRemoved.forEach((id) => foods.delete(id));
@@ -105,7 +109,8 @@ function updateHud(leaderboard) {
   leaderboard.forEach((entry) => {
     const li = document.createElement('li');
     li.textContent = `${entry.nickname} — ${entry.score}`;
-    if (me && entry.nickname === myNickname) li.classList.add('me');
+    // playerId 기준 판별 — 동명이인 오강조 방지
+    if (entry.playerId === myPlayerId) li.classList.add('me');
     leaderboardList.appendChild(li);
   });
 }
@@ -152,6 +157,8 @@ function render() {
   ctx.fillRect(0, 0, w, h);
 
   const t = Math.min(1, (performance.now() - lastStateTime) / TICK_MS);
+  // 경계 원을 서버가 알려준 반지름으로 부드럽게 수렴시킨다
+  mapRadius = lerp(mapRadius, targetMapRadius, 0.1);
   const camera = cameraPosition(t);
   const scale = viewScale();
 
@@ -265,7 +272,6 @@ function drawNickname(snake, segs) {
 // ===== 입장/재입장 =====
 function join() {
   const nickname = nicknameInput.value.trim() || '이름없는지렁이';
-  myNickname = nickname;
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'join', nickname }));
   } else {

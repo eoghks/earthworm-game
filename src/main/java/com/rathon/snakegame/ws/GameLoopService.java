@@ -95,10 +95,10 @@ public class GameLoopService {
         }
     }
 
-    /** 입장 처리 — 기존 지렁이가 있으면 제거 후 새로 스폰하고 입장 승인 메시지를 보낸다 */
+    /** 입장 처리 — 생존 중 재입장은 사망 처리(먹이 배출) 후 새로 스폰하고 입장 승인 메시지를 보낸다 */
     private void handleJoin(GameCommand.Join join) {
         sessionRegistry.findPlayerBySession(join.sessionId()).ifPresent(oldPlayerId -> {
-            world.removeSnake(oldPlayerId);
+            world.killSnake(oldPlayerId);
             sessionRegistry.unbindPlayer(oldPlayerId);
         });
         String playerId = UUID.randomUUID().toString();
@@ -106,7 +106,7 @@ public class GameLoopService {
         sessionRegistry.bindPlayer(join.sessionId(), playerId);
         List<FoodDto> foods = world.foods().stream().map(FoodDto::from).toList();
         sessionRegistry.findSession(join.sessionId())
-                .ifPresent(session -> send(session, JoinedMessage.of(playerId, GameConfig.MAP_RADIUS, foods)));
+                .ifPresent(session -> send(session, JoinedMessage.of(playerId, world.mapRadius(), foods)));
     }
 
     /** 조작 입력 반영 */
@@ -133,7 +133,7 @@ public class GameLoopService {
     private void broadcastState() {
         List<SnakeDto> snakes = world.snakes().stream().map(SnakeDto::from).toList();
         List<FoodDto> foodsAdded = world.getAddedFoods().stream().map(FoodDto::from).toList();
-        StateMessage state = StateMessage.of(
+        StateMessage state = StateMessage.of(world.mapRadius(),
                 snakes, foodsAdded, List.copyOf(world.getRemovedFoodIds()), world.leaderboard());
         // 개선 여지: 접속자가 많아지면 시야 기반 관심 영역(AOI) 필터링으로 페이로드를 더 줄일 수 있다
         TextMessage payload = new TextMessage(toJson(state));

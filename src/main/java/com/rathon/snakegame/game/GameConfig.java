@@ -10,8 +10,17 @@ public final class GameConfig {
         // 상수 홀더 — 인스턴스 생성 금지
     }
 
-    /** 원형 맵 반지름 (중심 원점) */
-    public static final double MAP_RADIUS = 2000.0;
+    /** 기본 맵 반지름 (중심 원점) — 기준 인원 이하일 때의 크기 */
+    public static final double BASE_RADIUS = 2000.0;
+
+    /** 기본 반지름이 유지되는 기준 인원 — 초과 시 √비례로 목표 반지름이 커진다 */
+    public static final int BASE_PLAYER_COUNT = 5;
+
+    /** 맵 확장 속도 (픽셀/틱) — 목표 반지름까지 빠르게 넓힌다 */
+    public static final double MAP_EXPAND_PER_TICK = 8.0;
+
+    /** 맵 수축 속도 (픽셀/틱) — 느리게 조여 경계 밖 플레이어가 대응할 시간을 준다 */
+    public static final double MAP_SHRINK_PER_TICK = 2.0;
 
     /** 초당 틱 수 */
     public static final int TICK_RATE = 20;
@@ -40,8 +49,11 @@ public final class GameConfig {
     /** 부스트 중 세그먼트 1개가 소모되기까지 걸리는 틱 수 */
     public static final int BOOST_DRAIN_TICKS = 5;
 
-    /** 맵에 유지할 먹이 개수 */
+    /** 기본 반지름 기준 먹이 목표 개수 — 실제 목표량은 맵 면적에 비례해 조정된다 */
     public static final int FOOD_COUNT = 400;
+
+    /** 먹이 생성 위치가 맵 경계에서 확보할 여유 거리 */
+    public static final double FOOD_SPAWN_MARGIN = 50.0;
 
     /** 먹이 섭취 판정 거리 (머리 중심 ~ 먹이 중심) */
     public static final double FOOD_EAT_DISTANCE = 22.0;

@@ -11,13 +11,14 @@ import com.rathon.snakegame.game.LeaderboardEntry;
  */
 public record StateMessage(
         String type,
+        double mapRadius,
         List<SnakeDto> snakes,
         List<FoodDto> foodsAdded,
         List<Long> foodsRemoved,
         List<LeaderboardEntry> leaderboard) {
 
-    public static StateMessage of(List<SnakeDto> snakes, List<FoodDto> foodsAdded,
+    public static StateMessage of(double mapRadius, List<SnakeDto> snakes, List<FoodDto> foodsAdded,
                                   List<Long> foodsRemoved, List<LeaderboardEntry> leaderboard) {
-        return new StateMessage("state", snakes, foodsAdded, foodsRemoved, leaderboard);
+        return new StateMessage("state", mapRadius, snakes, foodsAdded, foodsRemoved, leaderboard);
     }
 }

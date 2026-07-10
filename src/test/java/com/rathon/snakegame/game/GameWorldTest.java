@@ -1,6 +1,7 @@
 package com.rathon.snakegame.game;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import java.util.List;
 import java.util.Random;
@@ -56,7 +57,7 @@ class GameWorldTest {
     @Test
     @DisplayName("경계 사망: 머리가 맵 반지름을 벗어나면 죽는다")
     void tick_killsSnakeOutOfBounds() {
-        world.spawnSnakeAt("p1", "탈주자", new Vec2(GameConfig.MAP_RADIUS - 1, 0), 0);
+        world.spawnSnakeAt("p1", "탈주자", new Vec2(GameConfig.BASE_RADIUS - 1, 0), 0);
 
         List<DeathEvent> deaths = world.tick();
 
@@ -67,7 +68,7 @@ class GameWorldTest {
     @Test
     @DisplayName("사망 변환: 죽은 지렁이 몸이 먹이로 배출된다")
     void tick_convertsDeadBodyToFood() {
-        Snake snake = world.spawnSnakeAt("p1", "탈주자", new Vec2(GameConfig.MAP_RADIUS - 1, 0), 0);
+        Snake snake = world.spawnSnakeAt("p1", "탈주자", new Vec2(GameConfig.BASE_RADIUS - 1, 0), 0);
         int bodySize = snake.score();
         int expectedFoods = (bodySize + GameConfig.CORPSE_FOOD_INTERVAL - 1) / GameConfig.CORPSE_FOOD_INTERVAL;
 
@@ -133,5 +134,88 @@ class GameWorldTest {
         fullWorld.tick();
 
         assertThat(fullWorld.foods().size()).isGreaterThanOrEqualTo(GameConfig.FOOD_COUNT);
+    }
+
+    @Test
+    @DisplayName("강제 사망 처리: killSnake는 몸을 먹이로 배출하며 제거한다")
+    void killSnake_dropsCorpseFood() {
+        Snake snake = world.spawnSnakeAt("p1", "재입장자", new Vec2(0, 0), 0);
+        int expectedFoods = (snake.score() + GameConfig.CORPSE_FOOD_INTERVAL - 1)
+                / GameConfig.CORPSE_FOOD_INTERVAL;
+
+        world.killSnake("p1");
+
+        assertThat(world.findSnake("p1")).isEmpty();
+        assertThat(world.getAddedFoods()).hasSize(expectedFoods);
+    }
+
+    @Test
+    @DisplayName("목표 반지름: 기준 인원까지는 기본 크기, 초과 시 √비례로 커진다")
+    void targetRadius_scalesWithSqrtOfPlayerCount() {
+        assertThat(world.targetRadius()).isEqualTo(GameConfig.BASE_RADIUS); // 0명
+
+        spawnSnakesInLine(GameConfig.BASE_PLAYER_COUNT); // 5명
+        assertThat(world.targetRadius()).isEqualTo(GameConfig.BASE_RADIUS);
+
+        spawnSnakesInLine(20); // 20명 → sqrt(20/5) = 2배
+        assertThat(world.targetRadius()).isCloseTo(GameConfig.BASE_RADIUS * 2, within(1e-9));
+    }
+
+    @Test
+    @DisplayName("맵 확장: 목표보다 작으면 틱당 확장 한도만큼만 커진다")
+    void tick_expandsRadiusAtLimitedRate() {
+        spawnSnakesInLine(20); // 목표 반지름 = 기본의 2배
+
+        world.tick();
+
+        assertThat(world.mapRadius())
+                .isCloseTo(GameConfig.BASE_RADIUS + GameConfig.MAP_EXPAND_PER_TICK, within(1e-9));
+    }
+
+    @Test
+    @DisplayName("맵 수축: 인원이 줄면 틱당 수축 한도만큼만 느리게 조여든다")
+    void tick_shrinksSlowlyWhenPlayersLeave() {
+        spawnSnakesInLine(20);
+        for (int i = 0; i < 5; i++) {
+            world.tick(); // 5틱 확장 — 반지름 = 기본 + 40
+        }
+        double expanded = world.mapRadius();
+        removeSnakesInLine(20); // 전원 퇴장 → 목표 반지름이 기본으로 복귀
+
+        world.tick();
+
+        assertThat(world.mapRadius())
+                .isCloseTo(expanded - GameConfig.MAP_SHRINK_PER_TICK, within(1e-9));
+    }
+
+    @Test
+    @DisplayName("맵 수축: 경계 밖으로 밀려난 먹이는 제거된다")
+    void tick_removesFoodOutsideShrunkenBoundary() {
+        spawnSnakesInLine(20);
+        for (int i = 0; i < 10; i++) {
+            world.tick(); // 반지름 = 기본 + 80
+        }
+        Food outside = world.spawnFoodAt(new Vec2(GameConfig.BASE_RADIUS + 50, 0));
+        removeSnakesInLine(20);
+
+        while (world.mapRadius() >= GameConfig.BASE_RADIUS + 50) {
+            world.tick(); // 먹이 위치보다 안쪽으로 수축될 때까지 진행
+        }
+
+        assertThat(world.foods().stream().map(Food::id)).doesNotContain(outside.id());
+    }
+
+    /** 세로 일렬(간격 100)로 스폰해 서로 충돌·경계 이탈 없이 유지한다 */
+    private void spawnSnakesInLine(int count) {
+        for (int i = 0; i < count; i++) {
+            world.spawnSnakeAt("line" + i, "선수" + i, new Vec2(0, -950 + i * 100.0), 0);
+        }
+    }
+
+    /** spawnSnakesInLine으로 스폰한 지렁이 제거 */
+    private void removeSnakesInLine(int count) {
+        for (int i = 0; i < count; i++) {
+            world.removeSnake("line" + i);
+        }
     }
 }
