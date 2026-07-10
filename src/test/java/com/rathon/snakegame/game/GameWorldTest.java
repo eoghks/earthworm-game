@@ -150,6 +150,45 @@ class GameWorldTest {
     }
 
     @Test
+    @DisplayName("재입장 회귀: killSnake 후 tick을 돌려도 시체 먹이가 증분 기록에 남는다")
+    void tick_afterKillSnake_keepsCorpseFoodInDeltas() {
+        Snake snake = world.spawnSnakeAt("p1", "재입장자", new Vec2(0, 0), 0);
+        int expectedFoods = (snake.score() + GameConfig.CORPSE_FOOD_INTERVAL - 1)
+                / GameConfig.CORPSE_FOOD_INTERVAL;
+
+        // 게임 루프 순서 재현: 틱 시작 → 명령 처리(killSnake) → 월드 진행 → 브로드캐스트
+        world.beginTick();
+        world.killSnake("p1");
+        world.tick();
+
+        assertThat(world.getAddedFoods()).hasSize(expectedFoods);
+    }
+
+    @Test
+    @DisplayName("틱 시작: beginTick은 이전 틱의 먹이 증분 기록을 비운다")
+    void beginTick_clearsPreviousDeltas() {
+        world.spawnFoodAt(new Vec2(100, 100));
+        assertThat(world.getAddedFoods()).isNotEmpty();
+
+        world.beginTick();
+
+        assertThat(world.getAddedFoods()).isEmpty();
+        assertThat(world.getRemovedFoodIds()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("경계 밖 먹이: 수축 여부와 무관하게 틱 말미에 제거된다")
+    void tick_removesOutOfBoundsFoodEvenWithoutShrink() {
+        Food outside = world.spawnFoodAt(new Vec2(GameConfig.BASE_RADIUS + 10, 0));
+
+        world.beginTick();
+        world.tick();
+
+        assertThat(world.foods().stream().map(Food::id)).doesNotContain(outside.id());
+        assertThat(world.getRemovedFoodIds()).contains(outside.id());
+    }
+
+    @Test
     @DisplayName("목표 반지름: 기준 인원까지는 기본 크기, 초과 시 √비례로 커진다")
     void targetRadius_scalesWithSqrtOfPlayerCount() {
         assertThat(world.targetRadius()).isEqualTo(GameConfig.BASE_RADIUS); // 0명

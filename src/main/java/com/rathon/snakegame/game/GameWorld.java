@@ -42,7 +42,17 @@ public class GameWorld {
         this.foodTarget = foodTarget;
         replenishFood();
         // 초기 먹이는 증분이 아니라 스냅샷으로 전달되므로 증분 기록을 비운다
+        beginTick();
+    }
+
+    /**
+     * 틱 시작 — 이전 틱의 먹이 증분 기록을 비운다.
+     * 명령 처리(killSnake 등)보다 먼저 호출해야 명령 단계에서 배출된 먹이가
+     * 같은 틱의 증분 브로드캐스트에 포함된다.
+     */
+    public void beginTick() {
         addedFoods.clear();
+        removedFoodIds.clear();
     }
 
     /** 랜덤 위치에 지렁이 입장 — 현재 맵 반지름 안쪽으로 스폰한다 */
@@ -80,12 +90,11 @@ public class GameWorld {
     }
 
     /**
-     * 한 틱 진행: 맵 크기 조정 → 이동 → 부스트 소모 → 먹이 섭취 → 충돌/경계 사망 → 먹이 리스폰.
-     * 사망 이벤트 목록을 반환한다.
+     * 한 틱 진행: 맵 크기 조정 → 이동 → 부스트 소모 → 먹이 섭취 → 충돌/경계 사망
+     * → 경계 밖 먹이 제거 → 먹이 리스폰. 사망 이벤트 목록을 반환한다.
+     * 증분 기록 초기화는 beginTick()에서 별도로 수행한다.
      */
     public List<DeathEvent> tick() {
-        addedFoods.clear();
-        removedFoodIds.clear();
         adjustMapRadius();
         for (Snake snake : snakes.values()) {
             snake.move();
@@ -94,6 +103,7 @@ public class GameWorld {
         consumeFood();
         List<DeathEvent> deaths = detectDeaths();
         deaths.forEach(this::convertToFoodAndRemove);
+        removeOutOfBoundsFood();
         replenishFood();
         return deaths;
     }
@@ -111,11 +121,10 @@ public class GameWorld {
             mapRadius = Math.min(target, mapRadius + GameConfig.MAP_EXPAND_PER_TICK);
         } else if (mapRadius > target) {
             mapRadius = Math.max(target, mapRadius - GameConfig.MAP_SHRINK_PER_TICK);
-            removeOutOfBoundsFood();
         }
     }
 
-    /** 수축된 경계 밖 먹이 제거 — 증분 브로드캐스트에 기록한다 */
+    /** 경계 밖 먹이 제거 — 수축 종료 틱에 생긴 시체 먹이 잔존을 막기 위해 매 틱 말미에 수행한다 */
     private void removeOutOfBoundsFood() {
         List<Long> outside = foods.values().stream()
                 .filter(food -> food.position().length() > mapRadius)

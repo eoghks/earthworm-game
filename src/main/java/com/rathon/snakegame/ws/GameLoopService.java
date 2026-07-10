@@ -77,8 +77,10 @@ public class GameLoopService {
         }
     }
 
-    /** 한 틱: 명령 처리 → 월드 진행 → 사망 통지 → 상태 브로드캐스트 */
+    /** 한 틱: 증분 초기화 → 명령 처리 → 월드 진행 → 사망 통지 → 상태 브로드캐스트 */
     private void tick() {
+        // 명령 처리 전에 증분 버퍼를 비워야 명령 단계(재입장 killSnake 등)의 먹이 배출이 브로드캐스트에 포함된다
+        world.beginTick();
         drainCommands();
         List<DeathEvent> deaths = world.tick();
         deaths.forEach(this::notifyDeath);
