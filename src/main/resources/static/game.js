@@ -4,7 +4,13 @@
 const TICK_MS = 50;              // 서버 틱 간격 — 보간 기준
 const INPUT_INTERVAL_MS = 50;    // 입력 전송 스로틀 (~초당 20회)
 const VIEW_RADIUS = 700;         // 고정 시야 반경(월드 단위) — 창 크기와 무관하게 동일 범위를 보여줘 공정성 유지
-const SEGMENT_RADIUS = 10;       // 지렁이 몸 반지름(렌더)
+const SEGMENT_RADIUS = 10;       // 서버 radius 누락 시 폴백 몸 반지름(렌더 기본값)
+// 머리 렌더 반지름은 서버 판정 반지름(radius)과 1.0배로 일치시킨다 — 렌더=판정 괴리 방지.
+// 강조는 크기 대신 채움색 + 외곽선(HEAD_OUTLINE_*)으로만 준다.
+const HEAD_OUTLINE_WIDTH = 2;    // 머리 강조 외곽선 두께 — 반지름을 키우지 않는 시각 강조
+const HALO_RADIUS_RATIO = 1.6;   // 부스트 광륜 원 = 몸 반지름 × 이 비율 (기존 +6 오프셋의 비율화)
+const EYE_OFFSET_RATIO = 0.6;    // 눈 중심 거리 = 몸 반지름 × 이 비율
+const EYE_RADIUS_RATIO = 0.25;   // 눈 크기 = 몸 반지름 × 이 비율
 const FOOD_RADIUS = 5;           // 먹이 반지름(렌더)
 const STRIPE_WIDTH = 3;          // 줄무늬 스킨 — 세그먼트 N개 단위로 색 교차
 
@@ -456,52 +462,59 @@ function drawSnakes(t) {
     const segs = interpolatedSegments(snake, t);
     const skin = skinMap.get(snake.skinId);
     const isMe = snake.id === myPlayerId;
+    // 서버 권위 반지름 — 판정과 렌더를 일치시킨다. 누락(undefined)일 때만 폴백 기본값 사용
+    const radius = snake.radius ?? SEGMENT_RADIUS;
     for (let i = segs.length - 1; i >= 1; i--) {
       ctx.fillStyle = bodyFill(snake, skin, i, segs.length);
       ctx.beginPath();
-      ctx.arc(segs[i][0], segs[i][1], SEGMENT_RADIUS, 0, Math.PI * 2);
+      ctx.arc(segs[i][0], segs[i][1], radius, 0, Math.PI * 2);
       ctx.fill();
     }
     // 스킨 착용 중 부스트는 몸색 대신 머리 주변 광륜으로 표시
-    if (snake.boosting && skin && skin.id !== 'default') drawBoostHalo(segs[0]);
-    drawHead(segs, isMe);
-    drawNickname(snake, segs);
+    if (snake.boosting && skin && skin.id !== 'default') drawBoostHalo(segs[0], radius);
+    drawHead(segs, isMe, radius);
+    drawNickname(snake, segs, radius);
   });
 }
 
 // 부스트 광륜 — 스킨 색을 가리지 않으면서 부스트 상태를 드러낸다
-function drawBoostHalo(head) {
+function drawBoostHalo(head, radius) {
   ctx.strokeStyle = 'rgba(255,138,92,0.8)';
   ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.arc(head[0], head[1], SEGMENT_RADIUS + 6, 0, Math.PI * 2);
+  ctx.arc(head[0], head[1], radius * HALO_RADIUS_RATIO, 0, Math.PI * 2);
   ctx.stroke();
 }
 
-function drawHead(segs, isMe) {
+function drawHead(segs, isMe, radius) {
   const head = segs[0];
+  // 머리 원은 서버 판정 반지름(radius)과 동일하게 그린다 — 화면상 머리 크기 == 충돌/경계 판정 크기.
   ctx.fillStyle = isMe ? '#8fb3ff' : '#e8d5a8';
   ctx.beginPath();
-  ctx.arc(head[0], head[1], SEGMENT_RADIUS + 2, 0, Math.PI * 2);
+  ctx.arc(head[0], head[1], radius, 0, Math.PI * 2);
   ctx.fill();
-  // 눈 — 진행 방향 기준 양쪽
+  // 강조는 반지름 확대 대신 외곽선으로 — 판정 정합을 깨지 않으면서 머리를 눈에 띄게 한다
+  ctx.strokeStyle = isMe ? '#c9d9ff' : '#f3e6c4';
+  ctx.lineWidth = HEAD_OUTLINE_WIDTH;
+  ctx.stroke();
+  // 눈 — 진행 방향 기준 양쪽. 머리 굵기에 비례해 배치·크기를 키운다
   const next = segs[1] || head;
   const angle = Math.atan2(head[1] - next[1], head[0] - next[0]);
   ctx.fillStyle = '#10131a';
   [-0.5, 0.5].forEach((offset) => {
-    const ex = head[0] + Math.cos(angle + offset) * 6;
-    const ey = head[1] + Math.sin(angle + offset) * 6;
+    const ex = head[0] + Math.cos(angle + offset) * radius * EYE_OFFSET_RATIO;
+    const ey = head[1] + Math.sin(angle + offset) * radius * EYE_OFFSET_RATIO;
     ctx.beginPath();
-    ctx.arc(ex, ey, 2.5, 0, Math.PI * 2);
+    ctx.arc(ex, ey, radius * EYE_RADIUS_RATIO, 0, Math.PI * 2);
     ctx.fill();
   });
 }
 
-function drawNickname(snake, segs) {
+function drawNickname(snake, segs, radius) {
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
   ctx.font = '14px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(snake.nickname, segs[0][0], segs[0][1] - SEGMENT_RADIUS - 8);
+  ctx.fillText(snake.nickname, segs[0][0], segs[0][1] - radius - 8);
 }
 
 // ===== 입장/재입장 =====

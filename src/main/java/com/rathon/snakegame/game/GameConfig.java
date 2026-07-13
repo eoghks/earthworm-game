@@ -61,8 +61,21 @@ public final class GameConfig {
     /** 먹이 1개 섭취 시 늘어나는 세그먼트 수 */
     public static final int GROWTH_PER_FOOD = 1;
 
-    /** 머리-몸 충돌 판정 거리 */
-    public static final double COLLISION_DISTANCE = 14.0;
+    /**
+     * 기본 몸 반지름 — 초기 길이(INITIAL_LENGTH)일 때의 굵기.
+     * 클라이언트 기존 렌더값(SEGMENT_RADIUS=10)과 맞춰 회귀를 최소화한다.
+     */
+    public static final double BASE_SNAKE_RADIUS = 10.0;
+
+    /** 몸 반지름 상한 — 아무리 길어도 이 굵기를 넘지 않는다 */
+    public static final double MAX_SNAKE_RADIUS = 34.0;
+
+    /**
+     * 반지름 성장 계수 — radius = BASE + K·√(length - INITIAL_LENGTH).
+     * K=2.0이면 델타 24(=MAX-BASE)에 도달하는 지점이 √(len-10)=12 → 길이 154 부근으로,
+     * 초반엔 눈에 띄게 굵어지다 상한에 완만히 수렴한다.
+     */
+    public static final double SNAKE_GROWTH_K = 2.0;
 
     /** 사망 시 몸이 먹이로 변환되는 간격 — N세그먼트당 먹이 1개 */
     public static final int CORPSE_FOOD_INTERVAL = 2;

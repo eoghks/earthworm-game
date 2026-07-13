@@ -111,6 +111,38 @@ class SnakeTest {
         assertThat(snake.head().y()).isCloseTo(0.0, within(1e-9));
     }
 
+    @Test
+    @DisplayName("반지름: 초기 길이에서는 기본 반지름과 같다")
+    void radius_equalsBaseAtInitialLength() {
+        Snake snake = new Snake("p1", "테스터", new Vec2(0, 0), 0);
+
+        assertThat(snake.score()).isEqualTo(GameConfig.INITIAL_LENGTH);
+        assertThat(snake.radius()).isCloseTo(GameConfig.BASE_SNAKE_RADIUS, within(1e-9));
+    }
+
+    @Test
+    @DisplayName("반지름: 길이가 늘수록 단조 증가한다")
+    void radius_increasesMonotonicallyWithLength() {
+        Snake snake = new Snake("p1", "테스터", new Vec2(0, 0), 0);
+        double before = snake.radius();
+
+        for (int i = 0; i < 20; i++) {
+            growBy(snake, 5);
+            double after = snake.radius();
+            assertThat(after).isGreaterThanOrEqualTo(before);
+            before = after;
+        }
+    }
+
+    @Test
+    @DisplayName("반지름: 아무리 길어도 상한을 넘지 않는다")
+    void radius_clampsAtMaximum() {
+        Snake snake = new Snake("p1", "테스터", new Vec2(0, 0), 0);
+        growBy(snake, 2000); // 상한을 확실히 넘어서는 길이
+
+        assertThat(snake.radius()).isEqualTo(GameConfig.MAX_SNAKE_RADIUS);
+    }
+
     /** 성장 예약 후 틱을 돌려 실제 길이를 늘린다 */
     private static void growBy(Snake snake, int amount) {
         snake.grow(amount);

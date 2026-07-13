@@ -73,6 +73,16 @@ public class Snake {
     }
 
     /**
+     * 현재 길이 기반 몸 반지름 — 길이가 늘수록 √비례로 완만히 굵어지고 상한에서 멈춘다.
+     * 서버 권위: 이 값으로 충돌·섭취를 판정하고 클라이언트 렌더에도 그대로 전달한다.
+     */
+    public double radius() {
+        double extra = Math.max(0, segments.size() - GameConfig.INITIAL_LENGTH);
+        double grown = GameConfig.BASE_SNAKE_RADIUS + GameConfig.SNAKE_GROWTH_K * Math.sqrt(extra);
+        return Math.min(GameConfig.MAX_SNAKE_RADIUS, grown);
+    }
+
+    /**
      * 한 틱 전진 — 회전 제한을 걸어 목표 각도로 방향을 튼 뒤 머리를 이동하고,
      * 몸은 앞 세그먼트를 일정 간격으로 따라간다.
      */
