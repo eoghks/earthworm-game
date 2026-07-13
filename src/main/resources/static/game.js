@@ -92,10 +92,12 @@ async function loadCatalog() {
   skins.forEach((s) => skinMap.set(s.id, s));
 }
 
-// 내 정보 갱신 — 401(게스트)이면 null
-async function refreshMe() {
+// 내 정보 갱신 — 401(게스트)이면 null. fillNickname은 로그인 직후에만 true —
+// 라운드마다 사용자가 바꾼 커스텀 닉네임을 덮어쓰지 않기 위함
+async function refreshMe(fillNickname = false) {
   me = await api('GET', '/api/members/me').catch(() => null);
   updateAuthUi();
+  if (me && fillNickname) nicknameInput.value = me.nickname;
 }
 
 // ===== 인증 UI =====
@@ -105,7 +107,6 @@ function updateAuthUi() {
   if (me) {
     userNicknameEl.textContent = me.nickname;
     userCreditEl.textContent = me.credit;
-    nicknameInput.value = me.nickname; // 로그인 사용자는 회원 닉네임을 기본 사용
   }
   deadShopBtn.classList.toggle('hidden', !me);
 }
@@ -120,7 +121,7 @@ async function login() {
   await api('POST', '/api/auth/login', body);
   authPassword.value = '';
   showAuthError('');
-  await refreshMe();
+  await refreshMe(true); // 로그인 직후에만 입장 닉네임 입력란을 회원 닉네임으로 채운다
 }
 
 // 회원가입 — 첫 클릭은 닉네임 입력란 노출, 두 번째 클릭에 제출
@@ -157,6 +158,8 @@ function openShop() {
   shopError.classList.add('hidden');
   renderShop();
   shopOverlay.classList.remove('hidden');
+  // 적립은 서버에서 비동기 커밋이라 직전 조회가 구버전일 수 있다 — 최신 잔액으로 한 번 더 그린다
+  if (me) refreshMe().then(renderShop);
 }
 
 function renderShop() {
@@ -287,7 +290,11 @@ function onDead(msg) {
   // 로그인 상태면 이번 라운드 획득 크레딧 표시 + 잔액 갱신
   earnedCreditRow.classList.toggle('hidden', !me);
   earnedCreditEl.textContent = msg.creditEarned;
-  if (me) refreshMe();
+  if (me) {
+    refreshMe();
+    // 적립이 비동기 커밋이라 첫 조회가 커밋보다 앞설 수 있다 — 짧은 지연 후 한 번 더 갱신
+    setTimeout(() => refreshMe(), 500);
+  }
   hud.classList.add('hidden');
   deadOverlay.classList.remove('hidden');
 }
@@ -513,5 +520,5 @@ respawnBtn.addEventListener('click', join);
 
 // ===== 초기화 =====
 loadCatalog();
-refreshMe();
+refreshMe(true); // 세션이 살아있는 재방문도 로그인과 동일하게 닉네임을 채운다
 render();

@@ -79,7 +79,11 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 session.getId(), nickname, skinId, member.map(Member::getUsername)));
     }
 
-    /** 핸드셰이크에서 전달된 인증 주체로 회원 조회 — 게스트는 empty */
+    /**
+     * 핸드셰이크에서 전달된 인증 주체로 회원 조회 — 게스트는 empty.
+     * Principal은 핸드셰이크 시점에 고정되므로 다른 탭에서 로그아웃해도 열린 연결의 join은
+     * 기존 계정으로 적립·스킨 적용된다 — 본인 계정이라 피해 주체가 없어 정책상 허용한다.
+     */
     private Optional<Member> resolveMember(WebSocketSession session) {
         return Optional.ofNullable(session.getPrincipal())
                 .flatMap(principal -> memberService.findByUsername(principal.getName()));

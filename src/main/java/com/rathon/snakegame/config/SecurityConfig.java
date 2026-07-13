@@ -15,6 +15,8 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 
+import jakarta.servlet.DispatcherType;
+
 /**
  * 시큐리티 구성 — 게스트 플레이(정적 리소스·/ws)는 개방하고 회원 API만 보호한다.
  *
@@ -33,6 +35,8 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // 오류 디스패치(/error 포워드)는 인가 제외 — 본래 상태코드(400/500)가 401로 마스킹되지 않게 한다
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         // 게임 클라이언트 정적 리소스 + WebSocket — 게스트 플레이 유지
                         .requestMatchers("/", "/index.html", "/game.js", "/style.css", "/favicon.ico", "/ws").permitAll()
                         // 인증 API·스킨 카탈로그(게스트도 타 플레이어 스킨 렌더링에 필요)는 공개

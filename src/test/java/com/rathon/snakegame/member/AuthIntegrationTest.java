@@ -88,6 +88,16 @@ class AuthIntegrationTest {
     }
 
     @Test
+    @DisplayName("가입 거부: 잘못된 JSON 본문은 400과 오류 메시지로 응답한다 (500·401 마스킹 방지)")
+    void signup_rejectsMalformedJsonWithBadRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{broken-json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists());
+    }
+
+    @Test
     @DisplayName("로그인 거부: 잘못된 비밀번호는 401 단일 메시지")
     void login_rejectsBadCredentials() throws Exception {
         mockMvc.perform(post("/api/auth/signup")
