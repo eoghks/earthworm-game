@@ -5,7 +5,9 @@ const TICK_MS = 50;              // 서버 틱 간격 — 보간 기준
 const INPUT_INTERVAL_MS = 50;    // 입력 전송 스로틀 (~초당 20회)
 const VIEW_RADIUS = 700;         // 고정 시야 반경(월드 단위) — 창 크기와 무관하게 동일 범위를 보여줘 공정성 유지
 const SEGMENT_RADIUS = 10;       // 서버 radius 누락 시 폴백 몸 반지름(렌더 기본값)
-const HEAD_RADIUS_RATIO = 1.2;   // 머리 강조 원 = 몸 반지름 × 이 비율 (기존 +2 오프셋의 비율화)
+// 머리 렌더 반지름은 서버 판정 반지름(radius)과 1.0배로 일치시킨다 — 렌더=판정 괴리 방지.
+// 강조는 크기 대신 채움색 + 외곽선(HEAD_OUTLINE_*)으로만 준다.
+const HEAD_OUTLINE_WIDTH = 2;    // 머리 강조 외곽선 두께 — 반지름을 키우지 않는 시각 강조
 const HALO_RADIUS_RATIO = 1.6;   // 부스트 광륜 원 = 몸 반지름 × 이 비율 (기존 +6 오프셋의 비율화)
 const EYE_OFFSET_RATIO = 0.6;    // 눈 중심 거리 = 몸 반지름 × 이 비율
 const EYE_RADIUS_RATIO = 0.25;   // 눈 크기 = 몸 반지름 × 이 비율
@@ -460,8 +462,8 @@ function drawSnakes(t) {
     const segs = interpolatedSegments(snake, t);
     const skin = skinMap.get(snake.skinId);
     const isMe = snake.id === myPlayerId;
-    // 서버 권위 반지름 — 판정과 렌더를 일치시킨다. 누락 시 폴백 기본값 사용
-    const radius = snake.radius || SEGMENT_RADIUS;
+    // 서버 권위 반지름 — 판정과 렌더를 일치시킨다. 누락(undefined)일 때만 폴백 기본값 사용
+    const radius = snake.radius ?? SEGMENT_RADIUS;
     for (let i = segs.length - 1; i >= 1; i--) {
       ctx.fillStyle = bodyFill(snake, skin, i, segs.length);
       ctx.beginPath();
@@ -486,10 +488,15 @@ function drawBoostHalo(head, radius) {
 
 function drawHead(segs, isMe, radius) {
   const head = segs[0];
+  // 머리 원은 서버 판정 반지름(radius)과 동일하게 그린다 — 화면상 머리 크기 == 충돌/경계 판정 크기.
   ctx.fillStyle = isMe ? '#8fb3ff' : '#e8d5a8';
   ctx.beginPath();
-  ctx.arc(head[0], head[1], radius * HEAD_RADIUS_RATIO, 0, Math.PI * 2);
+  ctx.arc(head[0], head[1], radius, 0, Math.PI * 2);
   ctx.fill();
+  // 강조는 반지름 확대 대신 외곽선으로 — 판정 정합을 깨지 않으면서 머리를 눈에 띄게 한다
+  ctx.strokeStyle = isMe ? '#c9d9ff' : '#f3e6c4';
+  ctx.lineWidth = HEAD_OUTLINE_WIDTH;
+  ctx.stroke();
   // 눈 — 진행 방향 기준 양쪽. 머리 굵기에 비례해 배치·크기를 키운다
   const next = segs[1] || head;
   const angle = Math.atan2(head[1] - next[1], head[0] - next[0]);
