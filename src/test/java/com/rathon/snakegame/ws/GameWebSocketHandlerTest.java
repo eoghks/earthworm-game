@@ -14,6 +14,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rathon.snakegame.member.MemberService;
 
 /**
  * GameWebSocketHandler 단위 테스트 — 신뢰 경계 입력 방어(비유한 각도·파싱 불가 페이로드) 검증.
@@ -21,13 +22,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 class GameWebSocketHandlerTest {
 
     private final GameLoopService gameLoopService = mock(GameLoopService.class);
+    private final MemberService memberService = mock(MemberService.class);
     private final WebSocketSession session = mock(WebSocketSession.class);
     private GameWebSocketHandler handler;
 
     @BeforeEach
     void setUp() {
         when(session.getId()).thenReturn("s1");
-        handler = new GameWebSocketHandler(new SessionRegistry(), gameLoopService, new ObjectMapper());
+        handler = new GameWebSocketHandler(new SessionRegistry(), gameLoopService,
+                new ObjectMapper(), memberService);
     }
 
     @Test

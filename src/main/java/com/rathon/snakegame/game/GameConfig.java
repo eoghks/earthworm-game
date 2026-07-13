@@ -72,4 +72,10 @@ public final class GameConfig {
 
     /** 스폰 위치가 맵 경계에서 확보할 여유 거리 */
     public static final double SPAWN_MARGIN = 300.0;
+
+    /** 크레딧 환산비 — 최종 점수 N점당 크레딧 1 (내림) */
+    public static final int CREDIT_SCORE_DIVISOR = 10;
+
+    /** 기본 스킨 id — 게스트·미장착 회원에게 적용 (카탈로그 정의는 skin 패키지) */
+    public static final String DEFAULT_SKIN_ID = "default";
 }

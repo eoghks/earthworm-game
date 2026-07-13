@@ -1,7 +1,10 @@
 package com.rathon.snakegame.ws;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
@@ -16,6 +19,7 @@ import org.springframework.web.socket.handler.SessionLimitExceededException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rathon.snakegame.credit.CreditService;
 import com.rathon.snakegame.game.DeathEvent;
 import com.rathon.snakegame.game.GameConfig;
 import com.rathon.snakegame.game.GameWorld;
@@ -43,7 +47,10 @@ public class GameLoopService {
     private final SessionRegistry sessionRegistry;
     private final ObjectMapper objectMapper;
     private final GameWorld world;
+    private final CreditService creditService;
     private final ConcurrentLinkedQueue<GameCommand> commands = new ConcurrentLinkedQueue<>();
+    /** 로그인 플레이어 ↔ username 매핑 — 게임 루프 스레드에서만 접근하므로 동기화 불필요 */
+    private final Map<String, String> playerToUsername = new HashMap<>();
     private ScheduledExecutorService scheduler;
 
     /** WebSocket 스레드에서 명령을 큐에 적재한다 */
@@ -102,11 +109,14 @@ public class GameLoopService {
     /** 입장 처리 — 생존 중 재입장은 사망 처리(먹이 배출) 후 새로 스폰하고 입장 승인 메시지를 보낸다 */
     private void handleJoin(GameCommand.Join join) {
         sessionRegistry.findPlayerBySession(join.sessionId()).ifPresent(oldPlayerId -> {
+            // 자발적 재입장은 사망 통지가 없으므로 크레딧 적립 없이 매핑만 정리한다
             world.killSnake(oldPlayerId);
             sessionRegistry.unbindPlayer(oldPlayerId);
+            playerToUsername.remove(oldPlayerId);
         });
         String playerId = UUID.randomUUID().toString();
-        world.spawnSnake(playerId, join.nickname());
+        world.spawnSnake(playerId, join.nickname(), join.skinId());
+        join.username().ifPresent(username -> playerToUsername.put(playerId, username));
         sessionRegistry.bindPlayer(join.sessionId(), playerId);
         List<FoodDto> foods = world.foods().stream().map(FoodDto::from).toList();
         sessionRegistry.findSession(join.sessionId())
@@ -119,18 +129,35 @@ public class GameLoopService {
                 .ifPresent(playerId -> world.applyInput(playerId, input.angle(), input.boosting()));
     }
 
-    /** 연결 종료 처리 — 지렁이 제거 후 세션 등록 해제 */
+    /** 연결 종료 처리 — 지렁이 제거 후 세션·username 매핑 해제 */
     private void handleLeave(GameCommand.Leave leave) {
         sessionRegistry.findPlayerBySession(leave.sessionId())
-                .ifPresent(world::removeSnake);
+                .ifPresent(playerId -> {
+                    world.removeSnake(playerId);
+                    playerToUsername.remove(playerId);
+                });
         sessionRegistry.unregister(leave.sessionId());
     }
 
-    /** 사망한 플레이어에게 통지하고 바인딩을 해제한다 (세션 유지 — 재입장 가능) */
+    /** 사망한 플레이어에게 적립 크레딧과 함께 통지하고 바인딩을 해제한다 (세션 유지 — 재입장 가능) */
     private void notifyDeath(DeathEvent death) {
+        long creditEarned = awardCredit(death);
         sessionRegistry.findSessionByPlayer(death.playerId())
-                .ifPresent(session -> send(session, DeadMessage.of(death.score())));
+                .ifPresent(session -> send(session, DeadMessage.of(death.score(), creditEarned)));
         sessionRegistry.unbindPlayer(death.playerId());
+    }
+
+    /**
+     * 로그인 플레이어의 점수를 크레딧으로 환산해 비동기 적립한다.
+     * awardForScore는 @Async라 즉시 반환 — 게임 루프 스레드에서 DB를 만지지 않는다.
+     */
+    private long awardCredit(DeathEvent death) {
+        return Optional.ofNullable(playerToUsername.remove(death.playerId()))
+                .map(username -> {
+                    creditService.awardForScore(username, death.score());
+                    return CreditService.toCredit(death.score());
+                })
+                .orElse(0L);
     }
 
     /** 전체 상태(지렁이·먹이 증분·리더보드)를 모든 세션에 브로드캐스트한다 */
