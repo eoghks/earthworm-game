@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### H2 파일 DB — 로컬 데이터, 커밋 금지 ###
+/data/
