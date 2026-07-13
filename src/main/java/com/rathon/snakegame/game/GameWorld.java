@@ -141,12 +141,14 @@ public class GameWorld {
         });
     }
 
-    /** 머리 근처 먹이 섭취 판정 — 먹으면 성장 예약 */
+    /** 머리 근처 먹이 섭취 판정 — 먹으면 성장 예약. 굵은 머리일수록 흡수 반경이 넓어진다 */
     private void consumeFood() {
         for (Snake snake : snakes.values()) {
             Vec2 head = snake.head();
+            double eatDistance = GameConfig.FOOD_EAT_DISTANCE
+                    + (snake.radius() - GameConfig.BASE_SNAKE_RADIUS);
             List<Long> eaten = foods.values().stream()
-                    .filter(food -> food.position().distanceTo(head) <= GameConfig.FOOD_EAT_DISTANCE)
+                    .filter(food -> food.position().distanceTo(head) <= eatDistance)
                     .map(Food::id)
                     .toList();
             eaten.forEach(id -> {
@@ -161,7 +163,8 @@ public class GameWorld {
     private List<DeathEvent> detectDeaths() {
         List<DeathEvent> deaths = new ArrayList<>();
         for (Snake snake : snakes.values()) {
-            boolean outOfBounds = snake.head().length() >= mapRadius;
+            // 머리 끝(중심 + 반지름)이 경계를 넘으면 사망 — 렌더되는 머리 원과 판정을 일치시킨다
+            boolean outOfBounds = snake.head().length() + snake.radius() >= mapRadius;
             if (outOfBounds || hitsOtherBody(snake)) {
                 deaths.add(new DeathEvent(snake.getId(), snake.getNickname(), snake.score()));
             }
@@ -169,13 +172,20 @@ public class GameWorld {
         return deaths;
     }
 
-    /** 내 머리가 다른 지렁이 몸 세그먼트에 닿았는지 */
+    /** 내 머리가 다른 지렁이 몸 세그먼트에 닿았는지 — 내 머리 반지름 + 상대 몸 반지름 기준 */
     private boolean hitsOtherBody(Snake snake) {
         Vec2 head = snake.head();
+        double headRadius = snake.radius();
         return snakes.values().stream()
                 .filter(other -> !other.getId().equals(snake.getId()))
-                .flatMap(other -> other.segmentsView().stream())
-                .anyMatch(segment -> segment.distanceTo(head) <= GameConfig.COLLISION_DISTANCE);
+                .anyMatch(other -> touchesBody(head, headRadius, other));
+    }
+
+    /** 머리(반지름 headRadius)가 상대 지렁이 몸(반지름 other.radius())에 닿았는지 */
+    private boolean touchesBody(Vec2 head, double headRadius, Snake other) {
+        double threshold = headRadius + other.radius();
+        return other.segmentsView().stream()
+                .anyMatch(segment -> segment.distanceTo(head) <= threshold);
     }
 
     /** 사망한 지렁이 몸을 먹이로 변환하고 월드에서 제거 */

@@ -55,6 +55,33 @@ class GameWorldTest {
     }
 
     @Test
+    @DisplayName("충돌 반지름: 굵은 지렁이 몸에는 얇은 지렁이-지렁이 판정 거리보다 먼 거리에서도 충돌한다")
+    void tick_thickSnakeCollisionReachesBeyondBaseThreshold() {
+        // 얇은 지렁이를 일직선으로 길러 굵게 만든다 — 직선 정상상태에서 몸은 매 틱 (+BASE_SPEED, 0)만 이동
+        Snake thick = world.spawnSnakeAt("thick", "굵은놈", new Vec2(-1000, 0), 0);
+        thick.grow(90);
+        for (int i = 0; i < 100; i++) {
+            world.tick(); // 성장 반영 후 길이 100 — 이후 틱은 순수 전진
+        }
+        double thickRadius = thick.radius();
+        double thinRadius = GameConfig.BASE_SNAKE_RADIUS;
+        double gap = thinRadius * 2 + 5; // 얇은-얇은 임계(=반지름 합)보다 크지만 굵은 몸에는 닿는 거리
+        // 경계값 전제: 얇은끼리라면 안 닿고(gap > 2·BASE), 굵은 몸에는 닿는다(gap ≤ 굵은+얇은)
+        assertThat(gap).isGreaterThan(thinRadius * 2);
+        assertThat(gap).isLessThanOrEqualTo(thickRadius + thinRadius);
+
+        // 다음 틱 후 굵은 몸의 k번째 세그먼트 위치를 예측해 그 위 gap 지점으로 얇은 공격자 머리를 보낸다
+        double headX = thick.head().x();
+        double targetX = headX + GameConfig.BASE_SPEED - 10 * 10; // k=10번째 세그먼트
+        world.spawnSnakeAt("thin", "얇은놈", new Vec2(targetX, gap + GameConfig.BASE_SPEED), -Math.PI / 2);
+
+        List<DeathEvent> deaths = world.tick();
+
+        assertThat(deaths).extracting(DeathEvent::playerId).containsExactly("thin");
+        assertThat(world.findSnake("thick")).isPresent();
+    }
+
+    @Test
     @DisplayName("경계 사망: 머리가 맵 반지름을 벗어나면 죽는다")
     void tick_killsSnakeOutOfBounds() {
         world.spawnSnakeAt("p1", "탈주자", new Vec2(GameConfig.BASE_RADIUS - 1, 0), 0);
