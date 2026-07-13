@@ -11,6 +11,9 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rathon.snakegame.game.GameConfig;
+import com.rathon.snakegame.member.Member;
+import com.rathon.snakegame.member.MemberService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +33,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     private final SessionRegistry sessionRegistry;
     private final GameLoopService gameLoopService;
     private final ObjectMapper objectMapper;
+    private final MemberService memberService;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
@@ -62,10 +66,27 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    /** 입장 요청 — 닉네임을 정제해 큐에 넣는다 */
+    /** 입장 요청 — 로그인 사용자는 회원 닉네임을 기본값으로 쓰고 장착 스킨을 적용한다 */
     private void enqueueJoin(WebSocketSession session, JsonNode root) {
-        String nickname = sanitizeNickname(root.path("nickname").asText(""));
-        gameLoopService.enqueue(new GameCommand.Join(session.getId(), nickname));
+        // 핸드셰이크 시점 인증 사용자 조회 — WebSocket 스레드라 DB 접근 가능 (게임 루프 스레드 아님)
+        Optional<Member> member = resolveMember(session);
+        String requested = root.path("nickname").asText("");
+        String nickname = sanitizeNickname(requested.isBlank()
+                ? member.map(Member::getNickname).orElse("")
+                : requested);
+        String skinId = member.map(Member::getEquippedSkinId).orElse(GameConfig.DEFAULT_SKIN_ID);
+        gameLoopService.enqueue(new GameCommand.Join(
+                session.getId(), nickname, skinId, member.map(Member::getUsername)));
+    }
+
+    /**
+     * 핸드셰이크에서 전달된 인증 주체로 회원 조회 — 게스트는 empty.
+     * Principal은 핸드셰이크 시점에 고정되므로 다른 탭에서 로그아웃해도 열린 연결의 join은
+     * 기존 계정으로 적립·스킨 적용된다 — 본인 계정이라 피해 주체가 없어 정책상 허용한다.
+     */
+    private Optional<Member> resolveMember(WebSocketSession session) {
+        return Optional.ofNullable(session.getPrincipal())
+                .flatMap(principal -> memberService.findByUsername(principal.getName()));
     }
 
     /** 조작 입력 — 목표 각도·부스트 여부를 큐에 넣는다. 비유한 각도는 좌표 오염을 막기 위해 폐기 */

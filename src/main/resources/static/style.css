@@ -137,3 +137,110 @@ button {
 button:hover {
   background: #5a8ffb;
 }
+
+/* ---- 보조 버튼 (회원가입·로그아웃·상점 등) ---- */
+button.secondary {
+  background: #2a3348;
+  color: #c6d2e4;
+}
+
+button.secondary:hover {
+  background: #38445c;
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+/* ---- 인증 폼 ---- */
+#auth-section input,
+.dialog input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #38445c;
+  border-radius: 8px;
+  background: #0f1420;
+  color: #e8ecf1;
+  font-size: 15px;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #2a3348;
+  margin: 14px 0;
+}
+
+.error {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #ff7b8a;
+}
+
+.user-info {
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #ffd54d;
+}
+
+/* ---- 스킨 상점 ---- */
+.shop-dialog {
+  width: min(420px, 92vw); /* 작은 창에서도 화면 안에 들어오게 */
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+#skin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.skin-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #0f1420;
+  border: 1px solid #2a3348;
+  border-radius: 10px;
+  flex-wrap: wrap; /* 작은 창에서 버튼이 줄바꿈되도록 */
+}
+
+.skin-item.equipped {
+  border-color: #ffd54d;
+}
+
+/* 스킨 미리보기 — 단색·줄무늬·그라데이션을 CSS 배경으로 표현 */
+.skin-preview {
+  width: 44px;
+  height: 20px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.skin-name {
+  flex: 1;
+  min-width: 90px;
+  font-size: 14px;
+}
+
+.skin-price {
+  font-size: 13px;
+  color: #93a1b5;
+}
+
+.skin-item button {
+  width: auto;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.skin-state {
+  font-size: 13px;
+  color: #ffd54d;
+}

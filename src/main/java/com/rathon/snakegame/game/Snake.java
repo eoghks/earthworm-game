@@ -16,6 +16,8 @@ public class Snake {
 
     private final String id;
     private final String nickname;
+    /** 장착 스킨 id — 렌더링 힌트로 브로드캐스트에 포함된다 */
+    private final String skinId;
     /** 몸 세그먼트 위치 목록 — 0번이 머리 */
     private final List<Vec2> segments = new ArrayList<>();
     /** 현재 진행 각도 (라디안) */
@@ -30,8 +32,13 @@ public class Snake {
     private int boostDrainCounter;
 
     public Snake(String id, String nickname, Vec2 spawnPosition, double spawnAngle) {
+        this(id, nickname, GameConfig.DEFAULT_SKIN_ID, spawnPosition, spawnAngle);
+    }
+
+    public Snake(String id, String nickname, String skinId, Vec2 spawnPosition, double spawnAngle) {
         this.id = id;
         this.nickname = nickname;
+        this.skinId = skinId;
         this.direction = spawnAngle;
         this.targetAngle = spawnAngle;
         // 머리 뒤쪽으로 일정 간격의 초기 몸을 배치한다

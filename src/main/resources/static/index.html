@@ -19,22 +19,60 @@
     </div>
   </div>
 
-  <!-- 입장 오버레이 -->
+  <!-- 입장 오버레이 — 로그인/회원가입 + 게스트 플레이 -->
   <div id="join-overlay" class="overlay">
     <div class="dialog">
       <h1>지렁이 게임</h1>
+
+      <!-- 비로그인: 로그인/회원가입 폼 -->
+      <div id="auth-section">
+        <input id="auth-username" type="text" maxlength="20" placeholder="아이디" autocomplete="username">
+        <input id="auth-password" type="password" maxlength="64" placeholder="비밀번호" autocomplete="current-password">
+        <input id="auth-nickname" type="text" maxlength="16" placeholder="닉네임 (회원가입용)" class="hidden" autocomplete="off">
+        <div class="btn-row">
+          <button id="login-btn">로그인</button>
+          <button id="signup-btn" class="secondary">회원가입</button>
+        </div>
+        <p id="auth-error" class="error hidden"></p>
+        <hr class="divider">
+      </div>
+
+      <!-- 로그인 상태 표시 -->
+      <div id="user-section" class="hidden">
+        <p class="user-info"><span id="user-nickname"></span> 님 · 크레딧 <span id="user-credit">0</span></p>
+        <div class="btn-row">
+          <button id="shop-btn" class="secondary">스킨 상점</button>
+          <button id="logout-btn" class="secondary">로그아웃</button>
+        </div>
+        <hr class="divider">
+      </div>
+
+      <!-- 공통: 닉네임 + 입장 -->
       <input id="nickname" type="text" maxlength="16" placeholder="닉네임 입력" autocomplete="off">
       <button id="join-btn">입장</button>
       <p class="help">마우스로 방향 조작 · 클릭 또는 스페이스로 부스트</p>
     </div>
   </div>
 
-  <!-- 사망 오버레이 -->
+  <!-- 사망 오버레이 — 획득 크레딧 표시 -->
   <div id="dead-overlay" class="overlay hidden">
     <div class="dialog">
       <h1>사망!</h1>
       <p>최종 점수: <span id="final-score">0</span></p>
+      <p id="earned-credit-row" class="hidden">획득 크레딧: <span id="earned-credit">0</span></p>
       <button id="respawn-btn">다시 입장</button>
+      <button id="dead-shop-btn" class="secondary hidden">스킨 상점</button>
+    </div>
+  </div>
+
+  <!-- 스킨 상점 오버레이 -->
+  <div id="shop-overlay" class="overlay hidden">
+    <div class="dialog shop-dialog">
+      <h1>스킨 상점</h1>
+      <p class="user-info">크레딧: <span id="shop-credit">0</span></p>
+      <div id="skin-list"></div>
+      <p id="shop-error" class="error hidden"></p>
+      <button id="shop-close-btn" class="secondary">닫기</button>
     </div>
   </div>
 

@@ -56,17 +56,22 @@ public class GameWorld {
     }
 
     /** 랜덤 위치에 지렁이 입장 — 현재 맵 반지름 안쪽으로 스폰한다 */
-    public Snake spawnSnake(String id, String nickname) {
+    public Snake spawnSnake(String id, String nickname, String skinId) {
         double angle = random.nextDouble() * 2 * Math.PI;
         double radius = random.nextDouble() * (mapRadius - GameConfig.SPAWN_MARGIN);
         Vec2 position = Vec2.fromAngle(angle).scale(radius);
         double heading = random.nextDouble() * 2 * Math.PI;
-        return spawnSnakeAt(id, nickname, position, heading);
+        return spawnSnakeAt(id, nickname, skinId, position, heading);
     }
 
-    /** 지정 위치에 지렁이 입장 — 테스트에서도 사용 */
+    /** 지정 위치에 기본 스킨으로 입장 — 테스트에서도 사용 */
     public Snake spawnSnakeAt(String id, String nickname, Vec2 position, double heading) {
-        Snake snake = new Snake(id, nickname, position, heading);
+        return spawnSnakeAt(id, nickname, GameConfig.DEFAULT_SKIN_ID, position, heading);
+    }
+
+    /** 지정 위치·스킨으로 지렁이 입장 */
+    public Snake spawnSnakeAt(String id, String nickname, String skinId, Vec2 position, double heading) {
+        Snake snake = new Snake(id, nickname, skinId, position, heading);
         snakes.put(id, snake);
         return snake;
     }
