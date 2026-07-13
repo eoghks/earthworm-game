@@ -307,6 +307,8 @@ function onDead(msg) {
     setTimeout(() => refreshMe(), 500);
   }
   hud.classList.add('hidden');
+  // 나가기 확인창이 떠 있던 중 사망하면 두 오버레이가 겹친다 — 사망을 우선해 확인창을 닫고 배타 전환
+  quitOverlay.classList.add('hidden');
   deadOverlay.classList.remove('hidden');
 }
 
