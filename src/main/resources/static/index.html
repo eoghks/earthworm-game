@@ -10,9 +10,10 @@
   <!-- 게임 캔버스 — 창 크기에 맞춰 동적 리사이즈 -->
   <canvas id="game"></canvas>
 
-  <!-- HUD: 좌상단 내 점수 / 우상단 리더보드 -->
+  <!-- HUD: 좌상단 내 점수 / 우상단 리더보드 / 점수 아래 나가기 -->
   <div id="hud" class="hidden">
     <div id="score-panel">점수: <span id="my-score">0</span></div>
+    <button id="quit-btn" class="secondary">나가기</button>
     <div id="leaderboard-panel">
       <div class="lb-title">리더보드</div>
       <ol id="leaderboard-list"></ol>
@@ -62,6 +63,18 @@
       <p id="earned-credit-row" class="hidden">획득 크레딧: <span id="earned-credit">0</span></p>
       <button id="respawn-btn">다시 입장</button>
       <button id="dead-shop-btn" class="secondary hidden">스킨 상점</button>
+    </div>
+  </div>
+
+  <!-- 나가기 확인 오버레이 — 살아서 나가기는 라운드 포기라 점수 미적립 -->
+  <div id="quit-overlay" class="overlay hidden">
+    <div class="dialog">
+      <h1>나가기</h1>
+      <p>정말 나가시겠습니까?<br>현재 점수는 적립되지 않습니다.</p>
+      <div class="btn-row">
+        <button id="quit-confirm-btn">나가기</button>
+        <button id="quit-cancel-btn" class="secondary">취소</button>
+      </div>
     </div>
   </div>
 
