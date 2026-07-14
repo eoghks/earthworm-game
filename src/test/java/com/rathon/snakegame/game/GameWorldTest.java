@@ -177,6 +177,19 @@ class GameWorldTest {
     }
 
     @Test
+    @DisplayName("나가기(Leave): removeSnake는 사망 변환 없이 조용히 제거한다 — 시체 먹이 미배출")
+    void removeSnake_removesSilentlyWithoutCorpseFood() {
+        world.spawnSnakeAt("p1", "포기자", new Vec2(0, 0), 0);
+        world.beginTick();
+
+        world.removeSnake("p1");
+
+        // 라운드 포기 경로는 DeathEvent·시체 먹이를 만들지 않는다(크레딧 적립은 사망 통지에서만 발생)
+        assertThat(world.findSnake("p1")).isEmpty();
+        assertThat(world.getAddedFoods()).isEmpty();
+    }
+
+    @Test
     @DisplayName("재입장 회귀: killSnake 후 tick을 돌려도 시체 먹이가 증분 기록에 남는다")
     void tick_afterKillSnake_keepsCorpseFoodInDeltas() {
         Snake snake = world.spawnSnakeAt("p1", "재입장자", new Vec2(0, 0), 0);

@@ -23,6 +23,10 @@ const hud = document.getElementById('hud');
 const nicknameInput = document.getElementById('nickname');
 const joinBtn = document.getElementById('join-btn');
 const respawnBtn = document.getElementById('respawn-btn');
+const quitBtn = document.getElementById('quit-btn');
+const quitOverlay = document.getElementById('quit-overlay');
+const quitConfirmBtn = document.getElementById('quit-confirm-btn');
+const quitCancelBtn = document.getElementById('quit-cancel-btn');
 const myScoreEl = document.getElementById('my-score');
 const finalScoreEl = document.getElementById('final-score');
 const leaderboardList = document.getElementById('leaderboard-list');
@@ -250,10 +254,11 @@ function connect(nickname) {
   ws.onopen = () => ws.send(JSON.stringify({ type: 'join', nickname }));
   ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
   ws.onclose = () => {
-    // 연결이 끊기면 입장 화면으로 복귀
+    // 연결이 끊기면(나가기·비정상 종료 모두) 입장 화면으로 복귀
     myPlayerId = null;
     hud.classList.add('hidden');
     deadOverlay.classList.add('hidden');
+    quitOverlay.classList.add('hidden');
     joinOverlay.classList.remove('hidden');
   };
 }
@@ -302,6 +307,8 @@ function onDead(msg) {
     setTimeout(() => refreshMe(), 500);
   }
   hud.classList.add('hidden');
+  // 나가기 확인창이 떠 있던 중 사망하면 두 오버레이가 겹친다 — 사망을 우선해 확인창을 닫고 배타 전환
+  quitOverlay.classList.add('hidden');
   deadOverlay.classList.remove('hidden');
 }
 
@@ -530,6 +537,26 @@ function join() {
 joinBtn.addEventListener('click', join);
 nicknameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
 respawnBtn.addEventListener('click', join);
+
+// ===== 나가기 (라운드 포기) =====
+// WebSocket을 닫으면 서버가 Leave 명령으로 지렁이를 조용히 제거한다(사망 경로가 아니라 크레딧 미적립).
+// 실제 로비 전환은 ws.onclose 핸들러가 담당하고, 재입장은 join()이 닫힌 소켓을 감지해 새로 연결한다.
+function confirmQuit() {
+  quitOverlay.classList.remove('hidden');
+}
+
+function cancelQuit() {
+  quitOverlay.classList.add('hidden');
+}
+
+function quitToLobby() {
+  quitOverlay.classList.add('hidden');
+  if (ws) ws.close();
+}
+
+quitBtn.addEventListener('click', confirmQuit);
+quitCancelBtn.addEventListener('click', cancelQuit);
+quitConfirmBtn.addEventListener('click', quitToLobby);
 
 // ===== 초기화 =====
 loadCatalog();

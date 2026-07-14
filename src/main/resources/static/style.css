@@ -41,6 +41,18 @@ html, body {
   font-size: clamp(12px, 1.6vw, 18px); /* 작은 창에서 자동 축소 */
 }
 
+/* 나가기 버튼 — HUD는 pointer-events:none이라 버튼만 클릭 가능하게 되살린다.
+   점수 패널 바로 아래 좌상단에 두어 리더보드·점수를 가리지 않는다. */
+#quit-btn {
+  position: absolute;
+  top: 46px;
+  left: 10px;
+  width: auto;
+  padding: 6px 12px;
+  font-size: clamp(12px, 1.6vw, 15px);
+  pointer-events: auto;
+}
+
 #leaderboard-panel {
   position: absolute;
   top: 10px;
